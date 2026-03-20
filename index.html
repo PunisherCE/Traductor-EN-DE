@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AI Translator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f172a; /* Dark slate background */
+            color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: #1e293b;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 0 40px rgba(56, 189, 248, 0.15); /* Soft container glow */
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid #334155;
+            position: relative;
+        }
+        
+        h2 {
+            color: #38bdf8; /* Cyan accent */
+            text-shadow: 0 0 15px rgba(56, 189, 248, 0.6); /* Text bloom */
+            margin-top: 0;
+            margin-bottom: 2rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #475569;
+            background-color: #334155;
+            color: white;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        input:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); /* Input focus bloom */
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 0.5rem;
+            background-color: #38bdf8;
+            color: #0f172a;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); /* Button glow */
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background-color: #7dd3fc;
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.7); /* Stronger bloom on hover */
+            transform: translateY(-2px);
+        }
+
+        .result-area {
+            margin-top: 2rem;
+            padding: 1rem;
+            background-color: #0f172a;
+            border-radius: 0.5rem;
+            border: 1px solid #334155;
+            text-align: left;
+        }
+
+        .result-area strong {
+            color: #94a3b8;
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        #display {
+            color: #f1f5f9;
+            font-size: 1.1rem;
+            display: block;
+            min-height: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>AI TRANSLATOR</h2>
+        <input type="text" id="userInput" placeholder="Type English here...">
+        <button onclick="sendTranslation()">Translate</button>
+        <div class="result-area">
+            <strong>German Translation:</strong>
+            <span id="display"></span>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('userInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                sendTranslation();
+            }
+        });
+
+        async function sendTranslation() {
+            const text = document.getElementById('userInput').value;
+            const response = await fetch('http://localhost:5000/translate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({text: text})
+            });
+            const data = await response.json();
+            document.getElementById('display').innerText = data.german;
+        }
+    </script>
+</body>
+</html>

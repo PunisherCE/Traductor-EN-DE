@@ -1,0 +1,11 @@
+{
+  "embedding_dim": 256,
+  "units": 512,
+  "batch_size": 64,
+  "vocab_inp_size": 8557,
+  "vocab_tar_size": 15078,
+  "max_length_inp": 12,
+  "max_length_targ": 22,
+  "beam_width": 5,
+  "epochs_trained": 30
+}
