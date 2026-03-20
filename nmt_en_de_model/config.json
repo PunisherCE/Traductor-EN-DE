@@ -2,10 +2,10 @@
   "embedding_dim": 256,
   "units": 512,
   "batch_size": 64,
-  "vocab_inp_size": 8557,
-  "vocab_tar_size": 15078,
-  "max_length_inp": 12,
-  "max_length_targ": 22,
+  "vocab_inp_size": 12183,
+  "vocab_tar_size": 24228,
+  "max_length_inp": 14,
+  "max_length_targ": 23,
   "beam_width": 5,
   "epochs_trained": 30
 }
