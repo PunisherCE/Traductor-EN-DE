@@ -4,6 +4,7 @@ import json
 import re
 import unicodedata
 import tensorflow as tf
+import numpy as np
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -59,6 +60,7 @@ class Decoder(tf.keras.Model):
 
 # --- 2. CONFIGURATION & LOADING ---
 SAVE_DIR = "nmt_en_de_model"
+BEAM_WIDTH = 3
 app = Flask(__name__)
 CORS(app) # Vital for connecting with your HTML file
 
@@ -91,28 +93,86 @@ def preprocess_sentence(w):
     w = re.sub(r"[^a-zA-Zäöüß?.!,]+", " ", w).strip()
     return f'<start> {w} <end>'
 
-@app.route('/translate', methods=['POST'])
-def translate():
-    sentence = request.json.get('text', '')
+def beam_search_translate(sentence, beam_width=None):
+    """Translate using beam search decoding."""
+    if beam_width is None:
+        beam_width = BEAM_WIDTH
+
     sentence = preprocess_sentence(sentence)
     inputs = [inp_lang.word_index[i] for i in sentence.split(' ') if i in inp_lang.word_index]
     inputs = tf.keras.preprocessing.sequence.pad_sequences([inputs], maxlen=config['max_length_inp'], padding='post')
-    inputs = tf.convert_to_tensor(inputs)
+    input_tensor = tf.convert_to_tensor(inputs)
 
-    result = ''
-    hidden = [tf.zeros((1, config['units']))]
-    enc_out, enc_hidden = encoder(inputs, hidden)
-    dec_hidden = enc_hidden
-    dec_input = tf.expand_dims([targ_lang.word_index['<start>']], 0)
+    hidden = tf.zeros((1, config['units']))
+    enc_out, enc_hidden = encoder(input_tensor, hidden)
 
-    for _ in range(config['max_length_targ']):
-        predictions, dec_hidden, _ = decoder(dec_input, dec_hidden, enc_out)
-        predicted_id = tf.argmax(predictions[0]).numpy()
-        word = targ_lang.index_word[predicted_id]
-        if word == '<end>': break
-        result += word + ' '
-        dec_input = tf.expand_dims([predicted_id], 0)
+    start_token = targ_lang.word_index['<start>']
+    end_token = targ_lang.word_index.get('<end>')
 
+    # Each beam: (log_probability, [token_ids], decoder_hidden_state)
+    beams = [(0.0, [start_token], enc_hidden)]
+    completed = []
+
+    for t in range(config['max_length_targ']):
+        all_candidates = []
+
+        for log_prob, seq, dec_hidden in beams:
+            last_token = seq[-1]
+
+            # If this beam already ended, keep it
+            if last_token == end_token:
+                completed.append((log_prob, seq, dec_hidden))
+                continue
+
+            dec_input = tf.expand_dims([last_token], 0)
+            predictions, new_hidden, _ = decoder(dec_input, dec_hidden, enc_out)
+
+            # Get log probabilities
+            log_probs = tf.nn.log_softmax(predictions[0]).numpy()
+
+            # Get top-k candidates
+            top_k_indices = np.argsort(log_probs)[-beam_width:]
+
+            for idx in top_k_indices:
+                new_log_prob = log_prob + log_probs[idx]
+                new_seq = seq + [idx]
+                all_candidates.append((new_log_prob, new_seq, new_hidden))
+
+        if not all_candidates:
+            break
+
+        # Select top beams
+        all_candidates.sort(key=lambda x: x[0], reverse=True)
+        beams = all_candidates[:beam_width]
+
+        # Early stop if all beams have ended
+        if all(b[1][-1] == end_token for b in beams):
+            completed.extend(beams)
+            break
+
+    # If no beam completed, use the best active beam
+    if not completed:
+        completed = beams
+
+    # Pick best completed beam (length-normalized)
+    best = max(completed, key=lambda x: x[0] / max(len(x[1]), 1))
+    tokens = best[1]
+
+    # Convert token IDs to words
+    result = []
+    for tok_id in tokens:
+        word = targ_lang.index_word.get(tok_id, '')
+        if word == '<end>':
+            break
+        if word and word != '<start>':
+            result.append(word)
+
+    return ' '.join(result)
+
+@app.route('/translate', methods=['POST'])
+def translate():
+    sentence = request.json.get('text', '')
+    result = beam_search_translate(sentence)
     return jsonify({"german": result.strip()})
 
 if __name__ == '__main__':
